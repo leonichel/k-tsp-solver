@@ -1,6 +1,6 @@
 # %%
 
-from k_tsp_solver import Instance, GeneticAlgorithm
+from k_tsp_solver import Instance, GeneticAlgorithm, NearestNeighbors, Solution
 from pyspark.sql import SparkSession
 
 from pyspark.sql import functions as F
@@ -18,13 +18,24 @@ spark = (
 
 # %%
 
-instance = Instance.get_instance(
-    spark, 
-    "burma14.tsp"
+instance = Instance(
+    "dsj1000.tsp"
 )
+
+instance.get_instance(spark=spark)
+
+# %%
+instance.name, instance.dimension
 
 # %%
 
-instance.graph.vertices
+nearest_neighbors = NearestNeighbors()
 
+# %%
+
+nearest_neighbors.generate_solution(instance=instance, k_factor=1/3, n_solution=0)
+
+# %%
+
+nearest_neighbors.generate_multiple_solutions(instance=instance, k_factor=1/3, n_solutions=100)
 # %%

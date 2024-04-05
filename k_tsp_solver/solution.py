@@ -9,7 +9,7 @@ class Solution():
     instance: Instance
     model: str
     k_factor: float
-    path: GraphFrame
+    path: list
     k_size: int = None
     path_length: int = None
 

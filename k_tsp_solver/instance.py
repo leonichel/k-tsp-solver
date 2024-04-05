@@ -8,13 +8,11 @@ from pyspark.sql import SparkSession
 @dataclass
 class Instance:
     name: str
-    dimension: int
-    graph: GraphFrame
+    dimension: int = 0
+    graph: GraphFrame = None
 
-    @classmethod
-    def get_instance(cls, spark: SparkSession, instance_name: str) -> 'Instance':
-        instance = tsplib95.load(f"data/{instance_name}")
-        instance_name = instance.name
+    def get_instance(self, spark: SparkSession):
+        instance = tsplib95.load(f"data/{self.name}")
         instance_dimension = instance.dimension
 
         graph_data = nx.to_dict_of_dicts(instance.get_graph())
@@ -31,9 +29,6 @@ class Instance:
         edges_df = spark.createDataFrame(edges_list, ["src", "dst", "weight"])
 
         instance_graph = GraphFrame(vertices_df, edges_df)
-
-        return cls(
-            name=instance_name, 
-            dimension=instance_dimension, 
-            graph=instance_graph
-        )
+  
+        self.dimension = instance_dimension
+        self.graph = instance_graph
