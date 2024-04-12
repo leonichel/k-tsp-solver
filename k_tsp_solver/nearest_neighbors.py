@@ -1,90 +1,81 @@
 from k_tsp_solver import Instance, Solution, Model
 
 from dataclasses import dataclass
-from typing import List, Tuple
-from pyspark.sql import functions as F
-
-from graphframes import GraphFrame
-from pyspark.sql import DataFrame as SparkDataFrame
-from pyspark.sql import Row
+from typing import List
 
 
 @dataclass
 class NearestNeighbors(Model):
-    name = "NearestNeighbors"
-    parameters = {} 
+    name: str = "NearestNeighbors"
 
     def __init__(self):
         self.neighbors_cache = {}
+        self.sorted_edges_cache = []
 
-    def get_n_th_shortest_edge(self, instance: Instance, n: int) -> Row:
-        shortest_edges = (
-            instance.graph.edges
-                .filter("src != dst")
-                .sort(F.col("weight"))
-        )
+    def sort_edges_by_weight(self, instance: Instance) -> list:
+        if len(self.sorted_edges_cache) != 0:
+            return self.sorted_edges_cache
+        
+        edges = [(u, v, d) for u, v, d in instance.graph.edges(data=True) if u != v]
+        sorted_edges = sorted(edges, key=lambda x: x[2]['weight'])
+        self.sorted_edges_cache = sorted_edges
 
-        # normalize n to avoid “list index out of range” issues
-        n = n % shortest_edges.count()
+        return sorted_edges
 
-        return shortest_edges.take(n + 1)[n]
+    def get_n_th_shortest_edge(self, sorted_edges: list, n: int) -> tuple:
+        n = n % len(sorted_edges)   # normalize n to avoid “list index out of range” issues
+
+        return sorted_edges[n]
     
-    def get_neighbors(self, instance: Instance, vertex: int) -> SparkDataFrame:
+    def get_neighbors(self, instance: Instance, visited: list, vertex: int) -> list:
         if vertex in self.neighbors_cache:
-            return self.neighbors_cache[vertex]
+            neighbors = self.neighbors_cache[vertex]
+    
+        else:
+            neighbors = [
+                (vertex, neighbor, edge_data)
+                for neighbor, edge_data in instance.graph.adj[vertex].items()
+                if neighbor != vertex
+            ]
 
-        neighbors = (
-            instance.graph
-            .find("(v1)-[e]->(v2)") 
-                .filter(f"""
-                    (v1.id = '{vertex}' AND v1.id != v2.id)
-                    OR (v2.id = '{vertex}' AND v1.id != v2.id)
-                """) 
-                .selectExpr(f"CASE WHEN v1.id = '{vertex}' THEN v2.id ELSE v1.id END AS id", "e.weight")
-                .distinct()
-                .orderBy("e.weight")
-        )
+            self.neighbors_cache[vertex] = neighbors
 
-        self.neighbors_cache[vertex] = neighbors
-
+        neighbors = [neighbor for neighbor in neighbors if neighbor[1] not in visited]
+    
         return neighbors
     
-    def get_next_vertex(self, neighbors: SparkDataFrame, path: list) -> Row:
-        excluded_vertices = ','.join(map(str, path))
-        vertex = (
-            neighbors
-                .filter(f"id NOT IN ({excluded_vertices})")
-        ).first()
-
-        return vertex
-
+    def get_next_vertex(self, neighbors: list) -> list:
+        return min(neighbors, key=lambda edge: edge[2]['weight'])
+    
+    def append_edge_to_path(self, path_edges: list, visited: list, edge: tuple):
+        path_edges.append(edge)
+        visited.add(edge[0])
+        visited.add(edge[1])
     
     def generate_solution(self, instance: Instance, k_factor: float, n_solution: int) -> Solution:
+        path_edges = []
+        visited = set()
+        last_vertex: int = 0
+
         solution = Solution(
             instance=instance,
             model=self.name,
             k_factor=k_factor,
-            path=[]
+            path_edges=path_edges
         )
 
-        path = []
-        path_length: float = 0.0 
+        sorted_edges = self.sort_edges_by_weight(instance=instance)
+        shortest_edge = self.get_n_th_shortest_edge(sorted_edges=sorted_edges, n=n_solution)
+        self.append_edge_to_path(path_edges=path_edges, visited=visited, edge=shortest_edge)
+        last_vertex = path_edges[-1][1]
 
-        shortest_edge = self.get_n_th_shortest_edge(instance=instance, n=n_solution)
-        first_vertex = shortest_edge.src
-        vertex_id = first_vertex
-        distance = 0
-        
-        for _ in range(solution.k_size):
-            path.append(vertex_id)
-            path_length += float(distance)
-            neighbors = self.get_neighbors(instance=instance, vertex=vertex_id)
-            vertex = self.get_next_vertex(neighbors=neighbors, path=path)
-            vertex_id = vertex.id
-            distance = vertex.weight
-        
-        solution.path = path
-        solution.path_length = path_length
+        for _ in range(solution.k_size - 2):
+            neighbor_edges = self.get_neighbors(instance=instance, visited=visited, vertex=last_vertex)
+            shortest_edge = self.get_next_vertex(neighbors=neighbor_edges)
+            self.append_edge_to_path(path_edges=path_edges, visited=visited, edge=shortest_edge)
+            last_vertex = path_edges[-1][1]
+
+        solution.evaluate_edge_path_lenght()
 
         return solution
     
@@ -92,11 +83,11 @@ class NearestNeighbors(Model):
         solutions: List[Solution] = []
 
         for n in range(n_solutions):
-            solutions.append(
-                self.generate_solution(
-                    instance=instance, 
-                    k_factor=k_factor, 
-                    n_solution=n)
+            solution = self.generate_solution(
+                instance=instance, 
+                k_factor=k_factor, 
+                n_solution=n
             )
+            solutions.append(solution)
 
         return solutions

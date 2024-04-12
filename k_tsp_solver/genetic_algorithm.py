@@ -1,18 +1,159 @@
 from k_tsp_solver import Instance, Solution, Model
 
 from dataclasses import dataclass
-from pyspark.sql import functions as F
-
-from graphframes import GraphFrame
-from pyspark.sql import Row
+from typing import List
+import random
 
 
 @dataclass
 class GeneticAlgorithm(Model):
-    population_size: int
+    name: str = "GeneticAlgorith"
+    population_size: int = 100
     generations: int = 100
     mutation_rate: float = 0.05
     selection_size: int = 10
+
+
+    def generate_random_solution(self, instance: Instance, k_factor: float) -> list:
+        path_edges = []
+        visited = set()
+        last_vertex = None
+
+        solution = Solution(
+            instance=instance,
+            model=self.name,
+            k_factor=k_factor,
+            path_edges=path_edges
+        )
+
+        for _ in range(solution.k_size - 1):
+            random_edge = random.choice([
+                (u, v, d) 
+                for u, v, d in instance.graph.edges(nbunch=last_vertex, data=True)
+                if u != v and v not in visited
+            ])
+            path_edges.append(random_edge)
+            visited.add(random_edge[0])
+            visited.add(random_edge[1])
+            last_vertex = random_edge[1]
+
+        solution.evaluate_edge_path_lenght()
+
+        return solution
+    
+    def generate_random_population(self, instance: Instance, k_factor: float) -> List[Solution]:
+        population: List[Solution] = []
+
+        for _ in range(self.population_size):
+            solution = self.generate_random_solution(
+                instance=instance, 
+                k_factor=k_factor
+            )
+            population.append(solution)
+
+        return population
+    
+    def roulette_selection(self, population: List[Solution]) -> List[Solution]:
+        fitness = [solution.path_length for solution in population]
+        total_fit = sum(fitness)
+        relative_fit = [f/total_fit for f in fitness]
+
+        return random.choices(population, weights=relative_fit, k=self.selection_size)
+    
+    def ordered_crossover(self, solution_1: Solution, solution_2: Solution) -> Solution:
+        solution_1.get_path_vertices()
+        solution_2.get_path_vertices()
+
+        crossover_point_1 = random.randint(0, len(solution_1.path_vertices) - 1)
+        crossover_point_2 = random.randint(0, len(solution_1.path_vertices) - 1)
+
+        if crossover_point_2 < crossover_point_1:
+            crossover_point_1, crossover_point_2 = crossover_point_2, crossover_point_1
+
+        offspring = solution_1.path_vertices[crossover_point_1:crossover_point_2]
+        index = crossover_point_2
+
+        while len(offspring) < len(solution_1.path_vertices):
+            edge = solution_2.path_vertices[index % len(solution_2.path_vertices)]
+
+            if edge not in offspring:
+                offspring.append(edge)
+
+            index += 1
+
+        solution = Solution(
+            instance=solution_1.instance,
+            model=solution_1.model,
+            k_factor=solution_1.k_factor,
+            path_vertices=offspring
+        )
+
+        solution.get_path_edges()
+        solution.evaluate_edge_path_lenght()
+
+        return solution
+    
+    def generate_next_generation(self, population: List[Solution]) -> List[Solution]:
+        next_generation: List[Solution] = []
+
+        while len(next_generation) < self.population_size:
+            solution_1 = random.choice(population)
+            solution_2 = random.choice(population)
+            solution = self.ordered_crossover(solution_1, solution_2)
+            next_generation.append(solution)
+        
+        return next_generation
+    
+    def mutate(self, solution: Solution) -> Solution:
+        def swap_mutation(solution: Solution) -> Solution:
+            mutated_solution = solution.copy()
+
+            for i in range(len(mutated_solution)):
+                j = random.randint(0, len(mutated_solution) - 1)
+                mutated_solution[i], mutated_solution[j] = mutated_solution[j], mutated_solution[i]
+
+            return mutated_solution
+        
+        def reverse_swap_mutation(solution: Solution) -> Solution:
+            mutated_solution = solution.copy()
+
+            for i in range(len(mutated_solution)):
+                j = random.randint(0, len(mutated_solution) - 1)
+                start = min(i, j)
+                end = max(i, j)
+                mutated_solution[start:end+1] = mutated_solution[start:end+1][::-1]
+
+            return mutated_solution
+            
+        def slide_mutation(solution: Solution) -> Solution:
+            slide_point_value = random.choice(solution.path_vertices)
+            slide_index = random.randint(0, len(solution.path_vertices) - 1)
+            solution.path_vertices.remove(slide_point_value)
+            solution.path_vertices.insert(slide_index, slide_point_value)
+            solution.get_path_edges()
+            solution.evaluate_edge_path_lenght()
+
+            return solution
+            
+        def replacement_mutation(solution: Solution) -> Solution:
+            return None
+        
+        mutate_function = random.choice([
+            swap_mutation, 
+            # reverse_swap_mutation, 
+            # slide_mutation, 
+            # replacement_mutation
+        ])
+
+        solution.get_path_vertices()
+        mutated_solution = mutate_function(solution)
+        mutated_solution.get_path_edges()
+        mutated_solution.evaluate_edge_path_lenght()
+
+        return mutated_solution
+    
+    def generate_solution(self, instance: Instance):
+        return None
 
     # def generate_solution(df: pd.DataFrame, cities: np.array, solution_size: int, index: int) -> np.array:
     #     solution = np.zeros(solution_size, dtype=int)

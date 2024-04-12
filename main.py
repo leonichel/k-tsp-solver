@@ -1,41 +1,51 @@
 # %%
-
 from k_tsp_solver import Instance, GeneticAlgorithm, NearestNeighbors, Solution
-from pyspark.sql import SparkSession
 
-from pyspark.sql import functions as F
-
-# %%
-
-spark = (
-    SparkSession
-    .builder
-    .appName('GraphFrames_Test')
-    .config("spark.jars.packages", "graphframes:graphframes:0.8.3-spark3.5-s_2.12")
-    .config("spark.jars.repositories", "https://repos.spark-packages.org")
-    .getOrCreate()
-)
+from typing import List
 
 # %%
-
 instance = Instance(
-    "dsj1000.tsp"
+    name="burma14" # rat783
+)
+instance.get_instance()
+
+instance
+# %%
+genetic_algorithm = GeneticAlgorithm()
+
+# %%
+
+import time
+
+start_time = time.time()
+
+population = genetic_algorithm.generate_random_population(
+    instance=instance, 
+    k_factor=3/4
 )
 
-instance.get_instance(spark=spark)
+end_time = time.time()
+
+end_time - start_time
 
 # %%
-instance.name, instance.dimension
+selected_population = genetic_algorithm.roulette_selection(population)
 
 # %%
-
-nearest_neighbors = NearestNeighbors()
+population = genetic_algorithm.generate_next_generation(selected_population)
+# %%
+solution = population[0]
+solution.get_path_vertices()
+solution.path_vertices
 
 # %%
-
-nearest_neighbors.generate_solution(instance=instance, k_factor=1/3, n_solution=0)
-
+# genetic_algorithm.mutate(population[0])
 # %%
+import random
 
-nearest_neighbors.generate_multiple_solutions(instance=instance, k_factor=1/3, n_solutions=100)
+i = random.randint(0, len(solution.path_vertices) - 1)
+j = random.randint(0, len(solution.path_vertices) - 1)
+solution.path_vertices[i], solution.path_vertices[j] = solution.path_vertices[j], solution.path_vertices[i]
+# %%
+solution.path_vertices
 # %%

@@ -9,6 +9,6 @@ __all__ = [
     "Instance", 
     "Solution", 
     "Model", 
-    "NearestNeighbors", 
+    "NearestNeighbors",
     "GeneticAlgorithm"
 ]

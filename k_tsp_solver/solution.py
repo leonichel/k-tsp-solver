@@ -1,6 +1,5 @@
 from k_tsp_solver import Instance
 from dataclasses import dataclass
-from graphframes import GraphFrame
 import math
 
 
@@ -9,12 +8,14 @@ class Solution():
     instance: Instance
     model: str
     k_factor: float
-    path: list
-    k_size: int = None
+    path_edges: list = None
+    path_vertices: list = None
     path_length: int = None
+    k_size: int = None
+    
 
     def __post_init__(self):
-        self.k_size = int(math.floor(self.k_factor * self.instance.dimension))
+        self.k_size = int(math.floor(self.k_factor * self.instance.number_of_vertices))
 
     # def is_solution_feasible(df: pd.DataFrame, solution: np.array, solution_size: int) -> bool:
     #     if solution.size != solution_size:
@@ -35,10 +36,32 @@ class Solution():
 
     #     return len(visited_cities) == solution.size
         
-    # def evaluate(df: pd.DataFrame, population: np.array) -> np.array:
-    #     fitness_values = np.zeros(population.shape[0], dtype=int)
+    def evaluate_edge_path_lenght(self):
+        self.path_length = sum(edge[2]["weight"] for edge in self.path_edges)
 
-    #     for i, solution in enumerate(population):
-    #         fitness_values[i] = calculate_path_length(df, solution)
+    def get_path_vertices(self):
+        vertices = []
 
-    #     return fitness_values
+        for edge in self.path_edges:
+            source, target, _ = edge
+
+            if source not in vertices:
+                vertices.append(source)
+
+            if target not in vertices:
+                vertices.append(target)
+
+        self.path_vertices = vertices
+
+    def get_path_edges(self):
+        vertices = self.path_vertices
+        edges = []
+
+        for i in range(len(vertices) - 1):
+            source = vertices[i]
+            target = vertices[i + 1]
+  
+            edge_data = self.instance.graph.get_edge_data(source, target)
+            edges.append((source, target, edge_data))
+
+        self.path_edges = edges
