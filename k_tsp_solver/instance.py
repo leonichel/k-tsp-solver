@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from .utilis import timeit
 
-import tsplib95
+from dataclasses import dataclass
 from networkx import Graph
 
+import tsplib95
 
 @dataclass
 class Instance:
@@ -11,6 +12,7 @@ class Instance:
     number_of_edges: int = 0
     graph: Graph = None
 
+    @timeit
     def get_instance(self):
         instance = tsplib95.load(f"data/{self.name}.tsp")
         instance_graph = instance.get_graph()

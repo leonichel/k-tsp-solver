@@ -1,10 +1,13 @@
 from k_tsp_solver import Instance
-from dataclasses import dataclass
+
+from itertools import count
+from dataclasses import dataclass, field
 import math
 
 
 @dataclass
 class Solution():
+    id: int = field(default_factory=count().__next__, init=False)
     instance: Instance
     model: str
     k_factor: float
