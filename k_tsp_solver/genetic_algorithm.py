@@ -3,6 +3,9 @@ from k_tsp_solver import Instance, Solution, Model
 
 from dataclasses import dataclass
 from typing import List
+
+import threading
+from queue import Queue
 import random
 
 random.seed(0)
@@ -26,7 +29,7 @@ class GeneticAlgorithm(Model):
 
         solution = Solution(
             instance=instance,
-            model=self.name,
+            model=self,
             k_factor=k_factor,
             path_edges=path_edges
         )
@@ -66,6 +69,95 @@ class GeneticAlgorithm(Model):
 
         return random.choices(population, weights=relative_fit, k=self.selection_size)
     
+    def mutate(self, solution: Solution) -> Solution:
+        def swap_mutation(solution: Solution) -> Solution:
+            i = random.randint(0, len(solution.path_vertices) - 1)
+            j = random.randint(0, len(solution.path_vertices) - 1)
+            solution.path_vertices[i], solution.path_vertices[j] = solution.path_vertices[j], solution.path_vertices[i]
+
+            return solution
+        
+        def reverse_swap_mutation(solution: Solution) -> Solution:
+            i = random.randint(0, len(solution.path_vertices) - 1)
+            j = random.randint(0, len(solution.path_vertices) - 1)
+            start = min(i, j)
+            end = max(i, j)
+            solution.path_vertices[start:end+1] = solution.path_vertices[start:end+1][::-1]
+
+            return solution
+            
+        def slide_mutation(solution: Solution) -> Solution:
+            slide_point_value = random.choice(solution.path_vertices)
+            slide_index = random.randint(0, len(solution.path_vertices) - 1)
+            solution.path_vertices.remove(slide_point_value)
+            solution.path_vertices.insert(slide_index, slide_point_value)
+
+            return solution
+            
+        def replacement_mutation(solution: Solution) -> Solution:
+            graph = solution.instance.graph
+            i = random.randint(0, len(solution.path_vertices) - 1)
+
+            if i == 0:
+                next_vertex = solution.path_vertices[i + 1]
+                replacement_edges = sorted(
+                    [
+                        (u, v, d) 
+                        for u, v, d in graph.edges(data=True) 
+                        if u != v 
+                            and u not in solution.path_vertices
+                            and v == next_vertex
+                    ], 
+                    key=lambda x: x[2]['weight']
+                )
+                replacement_vertices = [u for (u, _, _) in replacement_edges]
+
+            elif i == (len(solution.path_vertices) - 1):
+                previous_vertex = solution.path_vertices[i - 1]
+                replacement_edges = sorted(
+                    [
+                        (u, v, d) 
+                        for u, v, d in graph.edges(data=True) 
+                        if u != v 
+                            and v not in solution.path_vertices
+                            and u == previous_vertex
+                    ], 
+                    key=lambda x: x[2]['weight']
+                )
+                replacement_vertices = [v for (_, v, _) in replacement_edges]
+
+            else:
+                previous_city = solution.path_vertices[i - 1]
+                next_vertex = solution.path_vertices[i + 1]
+                candidate_nodes = [v for v in graph.nodes() if v not in solution.path_vertices]
+                weights = {
+                    n: (graph[previous_city][n]['weight'], graph[n][next_vertex]['weight']) 
+                    for n in candidate_nodes
+                }
+                replacement_vertices = sorted(
+                    weights.items(), key=lambda item: sum(item[1]), reverse=False
+                )
+                replacement_vertices = [u[0] for u in replacement_vertices]
+
+            if len(replacement_vertices) != 0:
+                nearest_intermediate_vertex = replacement_vertices[0]
+                solution.path_vertices[i] = nearest_intermediate_vertex
+
+            return solution
+        
+        mutate_function = random.choice([
+            swap_mutation, 
+            reverse_swap_mutation, 
+            slide_mutation, 
+            replacement_mutation
+        ])
+
+        mutated_solution = mutate_function(solution)
+        mutated_solution.get_path_edges()
+        mutated_solution.evaluate_edge_path_lenght()
+
+        return mutated_solution
+    
     def ordered_crossover(self, solution_1: Solution, solution_2: Solution) -> Solution:
         solution_1.get_path_vertices()
         solution_2.get_path_vertices()
@@ -97,108 +189,34 @@ class GeneticAlgorithm(Model):
         solution.get_path_edges()
         solution.evaluate_edge_path_lenght()
 
+        if random.random() <= self.mutation_rate:
+            solution = self.mutate(solution)
+
         return solution
     
-    def mutate(self, solution: Solution, instance: Instance) -> Solution:
-        def swap_mutation(solution: Solution, instance: Instance = None) -> Solution:
-            i = random.randint(0, len(solution.path_vertices) - 1)
-            j = random.randint(0, len(solution.path_vertices) - 1)
-            solution.path_vertices[i], solution.path_vertices[j] = solution.path_vertices[j], solution.path_vertices[i]
-
-            return solution
-        
-        def reverse_swap_mutation(solution: Solution, instance: Instance = None) -> Solution:
-            i = random.randint(0, len(solution.path_vertices) - 1)
-            j = random.randint(0, len(solution.path_vertices) - 1)
-            start = min(i, j)
-            end = max(i, j)
-            solution.path_vertices[start:end+1] = solution.path_vertices[start:end+1][::-1]
-
-            return solution
-            
-        def slide_mutation(solution: Solution, instance: Instance = None) -> Solution:
-            slide_point_value = random.choice(solution.path_vertices)
-            slide_index = random.randint(0, len(solution.path_vertices) - 1)
-            solution.path_vertices.remove(slide_point_value)
-            solution.path_vertices.insert(slide_index, slide_point_value)
-
-            return solution
-            
-        def replacement_mutation(solution: Solution, instance: Instance = None) -> Solution:
-            i = random.randint(0, len(solution.path_vertices) - 1)
-
-            if i == 0:
-                next_vertex = solution.path_vertices[i + 1]
-                replacement_edges = sorted(
-                    [
-                        (u, v, d) 
-                        for u, v, d in instance.graph.edges(data=True) 
-                        if u != v 
-                            and u not in solution.path_vertices
-                            and v == next_vertex
-                    ], 
-                    key=lambda x: x[2]['weight']
-                )
-                replacement_vertices = [u for (u, _, _) in replacement_edges]
-
-            elif i == (len(solution.path_vertices) - 1):
-                previous_vertex = solution.path_vertices[i - 1]
-                replacement_edges = sorted(
-                    [
-                        (u, v, d) 
-                        for u, v, d in instance.graph.edges(data=True) 
-                        if u != v 
-                            and v not in solution.path_vertices
-                            and u == previous_vertex
-                    ], 
-                    key=lambda x: x[2]['weight']
-                )
-                replacement_vertices = [v for (_, v, _) in replacement_edges]
-
-            else:
-                previous_city = solution.path_vertices[i - 1]
-                next_vertex = solution.path_vertices[i + 1]
-                candidate_nodes = [v for v in instance.graph.nodes() if v not in solution.path_vertices]
-                weights = {
-                    n: (instance.graph[previous_city][n]['weight'], instance.graph[n][next_vertex]['weight']) 
-                    for n in candidate_nodes
-                }
-                replacement_vertices = sorted(
-                    weights.items(), key=lambda item: sum(item[1]), reverse=False
-                )
-                replacement_vertices = [u[0] for u in replacement_vertices]
-
-            if len(replacement_vertices) != 0:
-                nearest_intermediate_vertex = replacement_vertices[0]
-                solution.path_vertices[i] = nearest_intermediate_vertex
-
-            return solution
-        
-        mutate_function = random.choice([
-            swap_mutation, 
-            reverse_swap_mutation, 
-            slide_mutation, 
-            replacement_mutation
-        ])
-
-        mutated_solution = mutate_function(solution, instance)
-        mutated_solution.get_path_edges()
-        mutated_solution.evaluate_edge_path_lenght()
-
-        return mutated_solution
-    
-    def generate_next_generation(self, instance: Instance, population: List[Solution]) -> List[Solution]:
+    def generate_offspring_population(self, population: List[Solution]) -> List[Solution]:
         next_generation: List[Solution] = []
+        number_of_offsprings = self.population_size - len(next_generation)
+        
+        next_generation_queue = Queue()
 
-        while len(next_generation) < self.population_size:
+        def generate_offspring(solution_1: Solution, solution_2: Solution):
+            solution = self.ordered_crossover(solution_1, solution_2)
+            next_generation_queue.put(solution)
+        
+        threads = []
+        for _ in range(number_of_offsprings):
             solution_1 = random.choice(population)
             solution_2 = random.choice(population)
-            solution = self.ordered_crossover(solution_1, solution_2)
+            thread = threading.Thread(target=generate_offspring, args=(solution_1, solution_2))
+            thread.start()
+            threads.append(thread)
 
-            if random.random() <= self.mutation_rate:
-                solution = self.mutate(solution=solution, instance=instance)
+        for thread in threads:
+            thread.join()
 
-            next_generation.append(solution)
+        while not next_generation_queue.empty():
+            next_generation.append(next_generation_queue.get())
         
         return next_generation
     
@@ -240,6 +258,6 @@ class GeneticAlgorithm(Model):
             if is_debugging:
                 print(i, best_path_length, diversity_rate)
             selected_population = self.roulette_selection(population)
-            population = self.generate_next_generation(instance=instance, population=selected_population)
+            population = self.generate_offspring_population(selected_population)
 
         return self.best_solution

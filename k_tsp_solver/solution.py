@@ -1,4 +1,4 @@
-from k_tsp_solver import Instance
+from k_tsp_solver import Instance, Model
 
 from itertools import count
 from dataclasses import dataclass, field
@@ -9,7 +9,7 @@ import math
 class Solution():
     id: int = field(default_factory=count().__next__, init=False)
     instance: Instance
-    model: str
+    model: Model
     k_factor: float
     path_edges: list = None
     path_vertices: list = None
