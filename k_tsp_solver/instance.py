@@ -1,16 +1,19 @@
-from .utilis import timeit
+from k_tsp_solver import timeit
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from networkx import Graph
 
 import tsplib95
 
-@dataclass
+
+@dataclass(
+    unsafe_hash=True
+)
 class Instance:
     name: str
     number_of_vertices: int = 0
     number_of_edges: int = 0
-    graph: Graph = None
+    graph: Graph = field(default=None, repr=False)
 
     @timeit
     def get_instance(self):

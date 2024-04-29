@@ -1,24 +1,20 @@
-from k_tsp_solver import Instance, Solution, Model
+from k_tsp_solver import Instance, Solution, Model, ModelName, KFactor, timeit
 
 from dataclasses import dataclass
 from typing import List
+from functools import lru_cache
 
 
-@dataclass
+@dataclass(
+    unsafe_hash=True
+)
 class NearestNeighbors(Model):
-    name: str = "NearestNeighbors"
+    name: str = ModelName.NEAREST_NEIGHBORS
 
-    def __init__(self):
-        self.neighbors_cache = {}
-        self.sorted_edges_cache = []
-
-    def sort_edges_by_weight(self, instance: Instance) -> list:
-        if len(self.sorted_edges_cache) != 0:
-            return self.sorted_edges_cache
-        
+    @lru_cache
+    def sort_edges_by_weight(self, instance: Instance) -> list:        
         edges = [(u, v, d) for u, v, d in instance.graph.edges(data=True) if u != v]
         sorted_edges = sorted(edges, key=lambda x: x[2]['weight'])
-        self.sorted_edges_cache = sorted_edges
 
         return sorted_edges
 
@@ -27,22 +23,18 @@ class NearestNeighbors(Model):
 
         return sorted_edges[n]
     
-    def get_neighbors(self, instance: Instance, visited: list, vertex: int) -> list:
-        if vertex in self.neighbors_cache:
-            neighbors = self.neighbors_cache[vertex]
-    
-        else:
-            neighbors = [
-                (vertex, neighbor, edge_data)
-                for neighbor, edge_data in instance.graph.adj[vertex].items()
-                if neighbor != vertex
-            ]
-
-            self.neighbors_cache[vertex] = neighbors
-
-        neighbors = [neighbor for neighbor in neighbors if neighbor[1] not in visited]
+    @lru_cache
+    def get_neighbors(self, instance: Instance, vertex: int) -> list:
+        neighbors = [
+            (vertex, neighbor, edge_data)
+            for neighbor, edge_data in instance.graph.adj[vertex].items()
+            if neighbor != vertex
+        ]
     
         return neighbors
+    
+    def filter_unvisited_neighbors(self, neighbors: list, visited: set) -> list:
+        return [neighbor for neighbor in neighbors if neighbor[1] not in visited]
     
     def get_next_vertex(self, neighbors: list) -> list:
         return min(neighbors, key=lambda edge: edge[2]['weight'])
@@ -52,14 +44,14 @@ class NearestNeighbors(Model):
         visited.add(edge[0])
         visited.add(edge[1])
     
-    def generate_solution(self, instance: Instance, k_factor: float, n_solution: int) -> Solution:
+    def generate_solution(self, instance: Instance, k_factor: KFactor, n_solution: int = 0) -> Solution:
         path_edges = []
         visited = set()
         last_vertex: int = 0
 
         solution = Solution(
             instance=instance,
-            model=self.name,
+            model=self,
             k_factor=k_factor,
             path_edges=path_edges
         )
@@ -70,16 +62,19 @@ class NearestNeighbors(Model):
         last_vertex = path_edges[-1][1]
 
         for _ in range(solution.k_size - 2):
-            neighbor_edges = self.get_neighbors(instance=instance, visited=visited, vertex=last_vertex)
-            shortest_edge = self.get_next_vertex(neighbors=neighbor_edges)
+            all_neighbor_edges = self.get_neighbors(instance=instance, vertex=last_vertex)
+            unvisited_neighbor_edges = self.filter_unvisited_neighbors(neighbors=all_neighbor_edges, visited=visited)
+            shortest_edge = self.get_next_vertex(neighbors=unvisited_neighbor_edges)
             self.append_edge_to_path(path_edges=path_edges, visited=visited, edge=shortest_edge)
             last_vertex = path_edges[-1][1]
 
-        solution.evaluate_edge_path_lenght()
+        solution.evaluate_edge_path_length()
+        solution.get_path_vertices()
 
         return solution
     
-    def generate_multiple_solutions(self, instance: Instance, k_factor: float, n_solutions: int) -> List[Solution]:
+    @timeit
+    def generate_multiple_solutions(self, instance: Instance, k_factor: KFactor, n_solutions: int) -> List[Solution]:
         solutions: List[Solution] = []
 
         for n in range(n_solutions):

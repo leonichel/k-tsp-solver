@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.10"
 networkx = "2.6.3"
 tsplib95 = "0.7.1"
+pandas = "^2.2.2"
 
 
 [build-system]

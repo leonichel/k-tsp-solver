@@ -1,25 +1,18 @@
 # %%
-from k_tsp_solver import Instance, GeneticAlgorithm, NearestNeighbors
-
+from k_tsp_solver import Experiment, ModelName, KFactor
+import pandas as pd
 # %%
-instance = Instance(
-    name="burma14" # rat783, burma14
+
+experiment = Experiment(
+    instance_name="burma14",
+    model_name=ModelName.ENSEMBLE,
+    model_parameters={},
+    k_factor=KFactor.LARGE,
+    repetitions=10
 )
-instance.get_instance()
-
-instance
 # %%
-genetic_algorithm = GeneticAlgorithm(
-    population_size=100,
-    generations=100,
-    mutation_rate=0.05,
-    selection_size=10
-)
+solutions = experiment.run()
 
 # %%
-
-solution = genetic_algorithm.generate_solution(instance=instance, k_factor=3/4, is_debugging=False)
-# %%
-
-solution, solution.path_length
+pd.json_normalize(solutions)
 # %%

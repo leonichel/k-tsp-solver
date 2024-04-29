@@ -1,6 +1,7 @@
-from k_tsp_solver import Instance, Model
+from k_tsp_solver import Instance, Model, KFactor
 
 from itertools import count
+from enum import Enum
 from dataclasses import dataclass, field
 import math
 
@@ -10,36 +11,16 @@ class Solution():
     id: int = field(default_factory=count().__next__, init=False)
     instance: Instance
     model: Model
-    k_factor: float
-    path_edges: list = None
+    k_factor: KFactor
+    path_edges: list = field(default=None, repr=False)
     path_vertices: list = None
     path_length: int = None
     k_size: int = None
     
-
     def __post_init__(self):
-        self.k_size = int(math.floor(self.k_factor * self.instance.number_of_vertices))
-
-    # def is_solution_feasible(df: pd.DataFrame, solution: np.array, solution_size: int) -> bool:
-    #     if solution.size != solution_size:
-    #         return False
-
-    #     edges = df.merge(
-    #         pd.DataFrame({'source': solution[:-1], 'target': solution[1:]}),
-    #         on=['source', 'target'],
-    #         how='inner'
-    #     )
-
-    #     trips_number = len(edges)
-
-    #     if trips_number != solution_size - 1:
-    #         return False
-
-    #     visited_cities = set(np.concatenate((solution[:-1], solution[1:])))
-
-    #     return len(visited_cities) == solution.size
+        self.k_size = int(math.floor(self.k_factor.value * self.instance.number_of_vertices))
         
-    def evaluate_edge_path_lenght(self):
+    def evaluate_edge_path_length(self):
         self.path_length = sum(edge[2]["weight"] for edge in self.path_edges)
 
     def get_path_vertices(self):
@@ -68,3 +49,19 @@ class Solution():
             edges.append((source, target, edge_data))
 
         self.path_edges = edges
+
+    def get_solution_as_dict(self) -> dict:
+        def process_fields(obj: dataclass) -> dict:
+            return {
+                field.name: getattr(obj, field.name)
+                    if not isinstance(getattr(obj, field.name), Enum)
+                    else getattr(obj, field.name).value
+                for field in obj.__dataclass_fields__.values()
+                if field.repr
+            }
+        
+        solution = process_fields(self)
+        solution["instance"] = process_fields(solution["instance"])
+        solution["model"] = process_fields(solution["model"])
+
+        return solution

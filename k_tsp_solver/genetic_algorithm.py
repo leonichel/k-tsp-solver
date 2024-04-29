@@ -1,7 +1,6 @@
-from .utilis import timeit
-from k_tsp_solver import Instance, Solution, Model
+from k_tsp_solver import Instance, Solution, Model, ModelName, KFactor, timeit
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 import threading
@@ -13,16 +12,17 @@ random.seed(0)
 
 @dataclass
 class GeneticAlgorithm(Model):
-    name: str = "GeneticAlgorith"
+    name: str = ModelName.GENETIC_ALGORITHM
     population_size: int = 100
     generations: int = 100
     mutation_rate: float = 0.05
     selection_size: int = 10
-    diversity_rate: float = None
-    best_solution: Solution = None
-    best_path_length: int = None
+    diversity_rate: float = field(default=None, repr=False)
+    best_solution: Solution = field(default=None, repr=False)
+    best_path_length: int = field(default=None, repr=False)
+    initial_population: List[Solution] = field(default=None, repr=False)
 
-    def generate_random_solution(self, instance: Instance, k_factor: float) -> list:
+    def generate_random_solution(self, instance: Instance, k_factor: KFactor) -> list:
         path_edges = []
         visited = set()
         last_vertex = None
@@ -45,12 +45,12 @@ class GeneticAlgorithm(Model):
             visited.add(random_edge[1])
             last_vertex = random_edge[1]
 
-        solution.evaluate_edge_path_lenght()
+        solution.evaluate_edge_path_length()
         solution.get_path_vertices()
 
         return solution
     
-    def generate_random_population(self, instance: Instance, k_factor: float) -> List[Solution]:
+    def generate_random_population(self, instance: Instance, k_factor: KFactor) -> List[Solution]:
         population: List[Solution] = []
 
         for _ in range(self.population_size):
@@ -154,7 +154,7 @@ class GeneticAlgorithm(Model):
 
         mutated_solution = mutate_function(solution)
         mutated_solution.get_path_edges()
-        mutated_solution.evaluate_edge_path_lenght()
+        mutated_solution.evaluate_edge_path_length()
 
         return mutated_solution
     
@@ -187,7 +187,7 @@ class GeneticAlgorithm(Model):
         )
 
         solution.get_path_edges()
-        solution.evaluate_edge_path_lenght()
+        solution.evaluate_edge_path_length()
 
         if random.random() <= self.mutation_rate:
             solution = self.mutate(solution)
@@ -247,11 +247,18 @@ class GeneticAlgorithm(Model):
         return best_solution, best_path_length, diversity_rate
 
     @timeit
-    def generate_solution(self, instance: Instance, k_factor: float, is_debugging=False):
-        population = self.generate_random_population(
-            instance=instance, 
-            k_factor=k_factor
-        )
+    def generate_solution(self, instance: Instance, k_factor: KFactor, is_debugging=False):
+        self.diversity_rate: float = None
+        self.best_solution: Solution = None
+        self.best_path_length: int = None
+
+        if self.initial_population is not None:
+            population = self.initial_population
+        else:
+            population = self.generate_random_population(
+                instance=instance, 
+                k_factor=k_factor
+            )
 
         for i in range(self.generations):
             _, best_path_length, diversity_rate = self.evaluate_population(population)
