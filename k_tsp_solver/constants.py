@@ -10,9 +10,3 @@ SELECTED_INSTANCES = [
     "rat783", "rat99", "rd100", "rd400", "si175", "si535", "st70", "swiss42", 
     "ts225", "tsp225", "u159", "u574", "u724", "ulysses16", "ulysses22"
 ]
-
-K_FACTORS = [
-    1/4,
-    1/2,
-    3/4
-]

@@ -1,7 +1,7 @@
-from k_tsp_solver import Instance
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
+from k_tsp_solver import Instance
 
 
 @dataclass

@@ -1,11 +1,18 @@
-from k_tsp_solver import Instance, Solution, Model, ModelName, KFactor, timeit
-
-from dataclasses import dataclass, field
-from typing import List
-
+import random
 import threading
 from queue import Queue
-import random
+from typing import List
+from dataclasses import dataclass, field
+
+from k_tsp_solver import (
+    Instance,
+    Solution, 
+    Model, 
+    ModelName, 
+    KFactor, 
+    timeit,
+    logger
+)
 
 random.seed(0)
 
@@ -263,7 +270,7 @@ class GeneticAlgorithm(Model):
         for i in range(self.generations):
             _, best_path_length, diversity_rate = self.evaluate_population(population)
             if is_debugging:
-                print(i, best_path_length, diversity_rate)
+                logger.info(i, self.best_solution.id, best_path_length, diversity_rate)
             selected_population = self.roulette_selection(population)
             population = self.generate_offspring_population(selected_population)
 

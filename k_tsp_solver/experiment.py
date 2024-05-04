@@ -1,22 +1,40 @@
-from k_tsp_solver import Instance, NearestNeighbors, GeneticAlgorithm, Solution, ModelName, KFactor
-
-from itertools import count
-from dataclasses import dataclass, field
+import uuid
 from typing import List
+from dataclasses import dataclass, field
+
+from deltalake import write_deltalake
+import pandas as pd
+
+from k_tsp_solver import (
+    Instance, 
+    NearestNeighbors, 
+    GeneticAlgorithm, 
+    Solution, 
+    ModelName, 
+    KFactor, 
+    dataclass_to_dict
+)
 
 
 @dataclass
+class ExperimentSession():
+    session_id: str = field(default_factory=lambda: str(uuid.uuid1()), init=False)
+    results: dict = None
+    
+@dataclass
 class Experiment():
-    id: int = field(default_factory=count().__next__, init=False)
+    experiment_id: str = field(default_factory=lambda: str(uuid.uuid1()), init=False)
     instance_name: str
-    model_name: ModelName
-    model_parameters: dict
     k_factor: KFactor
     repetitions: int
-    worst_solution: Solution = None
-    best_solution: Solution = None
-    worst_path_length: int = None
-    best_path_length: int = None
+    model_name: ModelName
+    model_parameters: dict = field(default=None, repr=False)
+    sessions: List[ExperimentSession] = None
+
+    DELTA_PATH = "experiments/"
+
+    def __post_init__(self):
+        self.model_parameters_string = str(self.model_parameters)
 
     def _get_instance(self) -> Instance:
         instance = Instance(
@@ -26,19 +44,45 @@ class Experiment():
 
         return instance
 
-    def run(self) -> List[Solution]:
+    def _get_experiment_as_dataframe(self) -> pd.DataFrame:
+        return (
+            pd.json_normalize(
+                data=dataclass_to_dict(self), 
+                record_path=["sessions"], 
+                meta=["experiment_id", "model_name"],
+                sep="_"
+            )
+            .rename(columns=lambda x: x.split('results_')[-1])
+        )
+    
+    def _load_experiment(self) -> None:
+        write_deltalake(
+            table_or_uri=self.DELTA_PATH, 
+            data=self._get_experiment_as_dataframe(), 
+            mode="append",
+            partition_by=[
+                "instance_name", 
+                "k_factor",
+                "model_name"
+            ]
+        )
+
+    def run(self):
         instance = self._get_instance()
         initial_population: List[Solution] = []
-        solutions: List[Solution] = []
+        sessions: List[dict] = []
 
         if self.model_name == ModelName.ENSEMBLE:
             initial_population_model = NearestNeighbors()
             initial_population = initial_population_model.generate_multiple_solutions(
                 instance=instance, 
                 k_factor=self.k_factor, 
-                n_solutions=self.model_parameters.population_size
+                n_solutions=self.model_parameters["population_size"]
             )
-            model = GeneticAlgorithm(initial_population, **self.model_parameters)
+            model = GeneticAlgorithm(
+                initial_population=initial_population, 
+                **self.model_parameters
+            )
         
         elif self.model_name == ModelName.GENETIC_ALGORITHM:
             model = GeneticAlgorithm(**self.model_parameters)
@@ -55,8 +99,10 @@ class Experiment():
                 k_factor=self.k_factor
             )
 
-            solutions.append(solution)
+            solution_dict = solution.get_solution_as_dict()
+            experiment_session = ExperimentSession(results=solution_dict)
+            session_dict = dataclass_to_dict(experiment_session)
+            sessions.append(session_dict)
 
-        solutions = [i.get_solution_as_dict() for i in solutions]
-        
-        return solutions
+        self.sessions = sessions
+        self._load_experiment()

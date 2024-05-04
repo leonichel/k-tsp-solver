@@ -1,10 +1,9 @@
-from k_tsp_solver import timeit
-
 from dataclasses import dataclass, field
-from networkx import Graph
 
 import tsplib95
+from networkx import Graph
 
+from k_tsp_solver import timeit
 
 @dataclass(
     unsafe_hash=True

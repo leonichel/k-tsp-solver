@@ -10,6 +10,7 @@ python = "^3.10"
 networkx = "2.6.3"
 tsplib95 = "0.7.1"
 pandas = "^2.2.2"
+deltalake = "^0.17.3"
 
 
 [build-system]

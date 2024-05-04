@@ -1,8 +1,15 @@
-from k_tsp_solver import Instance, Solution, Model, ModelName, KFactor, timeit
-
-from dataclasses import dataclass
 from typing import List
 from functools import lru_cache
+from dataclasses import dataclass
+
+from k_tsp_solver import (
+    Instance, 
+    Solution, 
+    Model, 
+    ModelName, 
+    KFactor, 
+    timeit
+)
 
 
 @dataclass(

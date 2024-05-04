@@ -1,17 +1,20 @@
-from k_tsp_solver import Instance, Model, KFactor
-
-from itertools import count
-from enum import Enum
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
+
+from k_tsp_solver import (
+    Instance, 
+    Model, 
+    KFactor, 
+    dataclass_to_dict
+)
 
 
 @dataclass
 class Solution():
-    id: int = field(default_factory=count().__next__, init=False)
+    # solution_id: str = field(default_factory=lambda: str(uuid.uuid1()), init=False)
     instance: Instance
-    model: Model
     k_factor: KFactor
+    model: Model
     path_edges: list = field(default=None, repr=False)
     path_vertices: list = None
     path_length: int = None
@@ -50,18 +53,9 @@ class Solution():
 
         self.path_edges = edges
 
-    def get_solution_as_dict(self) -> dict:
-        def process_fields(obj: dataclass) -> dict:
-            return {
-                field.name: getattr(obj, field.name)
-                    if not isinstance(getattr(obj, field.name), Enum)
-                    else getattr(obj, field.name).value
-                for field in obj.__dataclass_fields__.values()
-                if field.repr
-            }
-        
-        solution = process_fields(self)
-        solution["instance"] = process_fields(solution["instance"])
-        solution["model"] = process_fields(solution["model"])
+    def get_solution_as_dict(self) -> dict:   
+        solution = dataclass_to_dict(self)
+        solution["instance"] = dataclass_to_dict(solution["instance"])
+        solution["model"] = str(dataclass_to_dict(solution["model"]))
 
         return solution
