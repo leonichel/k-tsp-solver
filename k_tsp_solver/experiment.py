@@ -28,6 +28,7 @@ class Experiment():
     k_factor: KFactor
     repetitions: int
     model_name: ModelName
+    has_closed_cycle: bool = False
     model_parameters: dict = field(default=None, repr=False)
     sessions: List[ExperimentSession] = None
 
@@ -63,6 +64,7 @@ class Experiment():
             partition_by=[
                 "instance_name", 
                 "k_factor",
+                "has_closed_cycle",
                 "model_name"
             ]
         )
@@ -76,7 +78,8 @@ class Experiment():
             initial_population_model = NearestNeighbors()
             initial_population = initial_population_model.generate_multiple_solutions(
                 instance=instance, 
-                k_factor=self.k_factor, 
+                k_factor=self.k_factor,
+                has_closed_cycle=self.has_closed_cycle,
                 n_solutions=self.model_parameters["population_size"]
             )
             model = GeneticAlgorithm(
@@ -96,7 +99,8 @@ class Experiment():
         for _ in range(self.repetitions):
             solution = model.generate_solution(
                 instance=instance,
-                k_factor=self.k_factor
+                k_factor=self.k_factor,
+                has_closed_cycle=self.has_closed_cycle
             )
 
             solution_dict = solution.get_solution_as_dict()

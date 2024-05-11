@@ -15,6 +15,7 @@ class Solution():
     instance: Instance
     k_factor: KFactor
     model: Model
+    has_closed_cycle: bool = False
     path_edges: list = field(default=None, repr=False)
     path_vertices: list = None
     path_length: int = None
@@ -37,6 +38,9 @@ class Solution():
 
             if target not in vertices:
                 vertices.append(target)
+
+        if self.has_closed_cycle:
+            vertices.append(vertices[0])
 
         self.path_vertices = vertices
 

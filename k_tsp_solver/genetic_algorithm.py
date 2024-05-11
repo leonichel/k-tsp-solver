@@ -1,5 +1,4 @@
 import random
-import threading
 from queue import Queue
 from typing import List
 from dataclasses import dataclass, field
@@ -28,8 +27,16 @@ class GeneticAlgorithm(Model):
     best_solution: Solution = field(default=None, repr=False)
     best_path_length: int = field(default=None, repr=False)
     initial_population: List[Solution] = field(default=None, repr=False)
+    has_variable_mutate_rate: bool = field(default=True, repr=False)
+    is_debugging: bool = field(default=False, repr=False)
 
-    def generate_random_solution(self, instance: Instance, k_factor: KFactor) -> list:
+    def get_edge_to_close_cycle(self, instance: Instance, path_edges: list) -> tuple:
+        first_vertex = path_edges[0][0]
+        last_vertex = path_edges[-1][1]
+
+        return last_vertex, first_vertex, instance.graph[last_vertex][first_vertex]
+
+    def generate_random_solution(self, instance: Instance, k_factor: KFactor, has_closed_cycle: bool) -> list:
         path_edges = []
         visited = set()
         last_vertex = None
@@ -38,10 +45,13 @@ class GeneticAlgorithm(Model):
             instance=instance,
             model=self,
             k_factor=k_factor,
+            has_closed_cycle=has_closed_cycle,
             path_edges=path_edges
         )
 
-        for _ in range(solution.k_size - 1):
+        vertices_to_append = solution.k_size - 2 if has_closed_cycle else solution.k_size - 1
+
+        for _ in range(vertices_to_append):
             random_edge = random.choice([
                 (u, v, d) 
                 for u, v, d in instance.graph.edges(nbunch=last_vertex, data=True)
@@ -52,25 +62,35 @@ class GeneticAlgorithm(Model):
             visited.add(random_edge[1])
             last_vertex = random_edge[1]
 
+            if has_closed_cycle:
+                edge_to_close_cycle = self.get_edge_to_close_cycle(instance=instance, path_edges=path_edges)
+                path_edges.append(edge_to_close_cycle)
+
         solution.evaluate_edge_path_length()
         solution.get_path_vertices()
 
         return solution
     
-    def generate_random_population(self, instance: Instance, k_factor: KFactor) -> List[Solution]:
+    def generate_random_population(self, instance: Instance, k_factor: KFactor, has_closed_cycle:bool) -> List[Solution]:
         population: List[Solution] = []
 
         for _ in range(self.population_size):
             solution = self.generate_random_solution(
                 instance=instance, 
-                k_factor=k_factor
+                k_factor=k_factor,
+                has_closed_cycle=has_closed_cycle
             )
             population.append(solution)
 
         return population
     
     def roulette_selection(self, population: List[Solution]) -> List[Solution]:
-        fitness = [1/solution.path_length for solution in population]
+        fitness = [
+            (1/solution.path_length)
+            if solution.path_length != 0 
+            else 0
+            for solution in population 
+        ]
         total_fit = sum(fitness)
         relative_fit = [f/total_fit for f in fitness]
 
@@ -160,17 +180,19 @@ class GeneticAlgorithm(Model):
         ])
 
         mutated_solution = mutate_function(solution)
-        mutated_solution.get_path_edges()
-        mutated_solution.evaluate_edge_path_length()
 
         return mutated_solution
     
     def ordered_crossover(self, solution_1: Solution, solution_2: Solution) -> Solution:
-        solution_1.get_path_vertices()
-        solution_2.get_path_vertices()
+        solution_1_path = solution_1.path_vertices
+        solution_2_path = solution_2.path_vertices
 
-        crossover_point_1 = random.randint(0, len(solution_1.path_vertices) - 1)
-        crossover_point_2 = random.randint(0, len(solution_1.path_vertices) - 1)
+        if solution_1.has_closed_cycle:
+            solution_1_path = solution_1_path[:-1]
+            solution_2_path = solution_2_path[:-1]
+
+        crossover_point_1 = random.randint(0, len(solution_1_path) - 1)
+        crossover_point_2 = random.randint(0, len(solution_1_path) - 1)
 
         if crossover_point_2 < crossover_point_1:
             crossover_point_1, crossover_point_2 = crossover_point_2, crossover_point_1
@@ -178,7 +200,7 @@ class GeneticAlgorithm(Model):
         offspring = solution_1.path_vertices[crossover_point_1:crossover_point_2]
         index = crossover_point_2
 
-        while len(offspring) < len(solution_1.path_vertices):
+        while len(offspring) < len(solution_1_path):
             edge = solution_2.path_vertices[index % len(solution_2.path_vertices)]
 
             if edge not in offspring:
@@ -190,43 +212,39 @@ class GeneticAlgorithm(Model):
             instance=solution_1.instance,
             model=solution_1.model,
             k_factor=solution_1.k_factor,
+            has_closed_cycle=solution_1.has_closed_cycle,
             path_vertices=offspring
         )
 
-        solution.get_path_edges()
-        solution.evaluate_edge_path_length()
-
         if random.random() <= self.mutation_rate:
             solution = self.mutate(solution)
+
+        if solution.has_closed_cycle:
+            solution.path_vertices.append(solution.path_vertices[0])
+
+        solution.get_path_edges()
+        solution.evaluate_edge_path_length()
 
         return solution
     
     def generate_offspring_population(self, population: List[Solution]) -> List[Solution]:
         next_generation: List[Solution] = []
-        number_of_offsprings = self.population_size - len(next_generation)
-        
-        next_generation_queue = Queue()
+        number_of_offsprings = self.population_size - len(population)
 
-        def generate_offspring(solution_1: Solution, solution_2: Solution):
-            solution = self.ordered_crossover(solution_1, solution_2)
-            next_generation_queue.put(solution)
-        
-        threads = []
         for _ in range(number_of_offsprings):
             solution_1 = random.choice(population)
             solution_2 = random.choice(population)
-            thread = threading.Thread(target=generate_offspring, args=(solution_1, solution_2))
-            thread.start()
-            threads.append(thread)
+            offspring = self.ordered_crossover(solution_1, solution_2)
+            next_generation.append(offspring)
 
-        for thread in threads:
-            thread.join()
-
-        while not next_generation_queue.empty():
-            next_generation.append(next_generation_queue.get())
+        offspring_population = population + next_generation
         
-        return next_generation
+        return offspring_population
     
+    def set_variable_mutate_rate(self) -> None:
+        mutate_rate = 1 / self.diversity_rate
+        self.mutation_rate = mutate_rate if mutate_rate > 0.05 else 0.05
+
     def evaluate_population(self, population: List[Solution]) -> tuple:
         best_solution, best_path_length = sorted(
             [
@@ -250,11 +268,12 @@ class GeneticAlgorithm(Model):
             self.best_path_length = best_path_length
 
         self.diversity_rate = diversity_rate
+        self.set_variable_mutate_rate()
 
         return best_solution, best_path_length, diversity_rate
 
     @timeit
-    def generate_solution(self, instance: Instance, k_factor: KFactor, is_debugging=False):
+    def generate_solution(self, instance: Instance, k_factor: KFactor, has_closed_cycle: bool):
         self.diversity_rate: float = None
         self.best_solution: Solution = None
         self.best_path_length: int = None
@@ -264,13 +283,16 @@ class GeneticAlgorithm(Model):
         else:
             population = self.generate_random_population(
                 instance=instance, 
-                k_factor=k_factor
+                k_factor=k_factor,
+                has_closed_cycle=has_closed_cycle
             )
 
         for i in range(self.generations):
             _, best_path_length, diversity_rate = self.evaluate_population(population)
-            if is_debugging:
-                logger.info(i, self.best_solution.id, best_path_length, diversity_rate)
+
+            if self.is_debugging:
+                logger.info(i, best_path_length, diversity_rate)
+                
             selected_population = self.roulette_selection(population)
             population = self.generate_offspring_population(selected_population)
 

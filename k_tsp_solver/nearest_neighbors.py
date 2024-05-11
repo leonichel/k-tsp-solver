@@ -46,12 +46,23 @@ class NearestNeighbors(Model):
     def get_next_vertex(self, neighbors: list) -> list:
         return min(neighbors, key=lambda edge: edge[2]['weight'])
     
-    def append_edge_to_path(self, path_edges: list, visited: list, edge: tuple):
+    def get_edge_to_close_cycle(self, instance: Instance, path_edges: list) -> tuple:
+        first_vertex = path_edges[0][0]
+        last_vertex = path_edges[-1][0]
+        return last_vertex, first_vertex, instance.graph[last_vertex][first_vertex]
+    
+    def append_edge_to_path(self, path_edges: list, visited: list, edge: tuple) -> None:
         path_edges.append(edge)
         visited.add(edge[0])
         visited.add(edge[1])
     
-    def generate_solution(self, instance: Instance, k_factor: KFactor, n_solution: int = 0) -> Solution:
+    def generate_solution(
+        self, 
+        instance: Instance, 
+        k_factor: KFactor, 
+        has_closed_cycle: bool,
+        n_solution: int = 0
+    ) -> Solution:
         path_edges = []
         visited = set()
         last_vertex: int = 0
@@ -60,6 +71,7 @@ class NearestNeighbors(Model):
             instance=instance,
             model=self,
             k_factor=k_factor,
+            has_closed_cycle=has_closed_cycle,
             path_edges=path_edges
         )
 
@@ -67,13 +79,18 @@ class NearestNeighbors(Model):
         shortest_edge = self.get_n_th_shortest_edge(sorted_edges=sorted_edges, n=n_solution)
         self.append_edge_to_path(path_edges=path_edges, visited=visited, edge=shortest_edge)
         last_vertex = path_edges[-1][1]
+        vertices_to_append = solution.k_size - 3 if has_closed_cycle else solution.k_size - 2
 
-        for _ in range(solution.k_size - 2):
+        for _ in range(vertices_to_append):
             all_neighbor_edges = self.get_neighbors(instance=instance, vertex=last_vertex)
             unvisited_neighbor_edges = self.filter_unvisited_neighbors(neighbors=all_neighbor_edges, visited=visited)
             shortest_edge = self.get_next_vertex(neighbors=unvisited_neighbor_edges)
             self.append_edge_to_path(path_edges=path_edges, visited=visited, edge=shortest_edge)
             last_vertex = path_edges[-1][1]
+        
+        if has_closed_cycle:
+            edge_to_close_cycle = self.get_edge_to_close_cycle(instance=instance, path_edges=path_edges)
+            self.append_edge_to_path(path_edges=path_edges, visited=visited, edge=edge_to_close_cycle)
 
         solution.evaluate_edge_path_length()
         solution.get_path_vertices()
@@ -81,13 +98,20 @@ class NearestNeighbors(Model):
         return solution
     
     @timeit
-    def generate_multiple_solutions(self, instance: Instance, k_factor: KFactor, n_solutions: int) -> List[Solution]:
+    def generate_multiple_solutions(
+        self, 
+        instance: Instance, 
+        k_factor: KFactor, 
+        has_closed_cycle: bool,
+        n_solutions: int
+    ) -> List[Solution]:
         solutions: List[Solution] = []
 
         for n in range(n_solutions):
             solution = self.generate_solution(
                 instance=instance, 
                 k_factor=k_factor, 
+                has_closed_cycle=has_closed_cycle,
                 n_solution=n
             )
             solutions.append(solution)
