@@ -23,11 +23,12 @@ for instance in SELECTED_INSTANCES:
                         else nearest_neighbors_parameters,
                     k_factor=k_factor,
                     has_closed_cycle=has_closed_cycle,
-                    repetitions=5
+                    repetitions=10 
+                        if model != ModelName.NEAREST_NEIGHBORS 
+                        else 1
                 )
                 experiment.run()
 # %%
 df = read_experiments()
 # %%
 df
-# %%
