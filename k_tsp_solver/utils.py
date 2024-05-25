@@ -4,6 +4,7 @@ from typing import Callable, Any
 
 from deltalake import DeltaTable
 import pandas as pd
+import duckdb
 
 from k_tsp_solver import logger
 
@@ -33,3 +34,13 @@ def dataclass_to_dict(dataclass_instance: Any) -> dict:
 
 def read_experiments() -> pd.DataFrame:
     return DeltaTable(DELTA_PATH).to_pandas()
+
+def export_results_by_instance() -> None:
+    dt = DeltaTable(DELTA_PATH).to_pyarrow_dataset()
+    raw_results = duckdb.arrow(dt)
+    sql_file_path = "k_tsp_solver/queries/process_results.sql"
+
+    with open(sql_file_path, "r") as file:
+        sql_query = file.read()
+    
+    duckdb.query(sql_query)

@@ -1,5 +1,5 @@
 # %%
-from k_tsp_solver import Experiment, ModelName, KFactor, read_experiments, SELECTED_INSTANCES
+from k_tsp_solver import Experiment, ModelName, KFactor, SELECTED_INSTANCES, export_results_by_instance
 # %%
 genetic_algorithm_parameters = {
     "population_size": 100,
@@ -8,7 +8,6 @@ genetic_algorithm_parameters = {
     "selection_size": 10,
     "has_variable_mutate_rate": True
 }
-
 nearest_neighbors_parameters = {}
 # %%
 for instance in SELECTED_INSTANCES: 
@@ -29,6 +28,4 @@ for instance in SELECTED_INSTANCES:
                 )
                 experiment.run()
 # %%
-df = read_experiments()
-# %%
-df
+export_results_by_instance()

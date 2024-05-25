@@ -242,8 +242,14 @@ class GeneticAlgorithm(Model):
         return offspring_population
     
     def set_variable_mutate_rate(self) -> None:
-        mutate_rate = 1 / self.diversity_rate
-        self.mutation_rate = mutate_rate if mutate_rate > 0.05 else 0.05
+        mutate_rate = 1 - self.diversity_rate
+
+        if mutate_rate < 0.05:
+            mutate_rate = 0.05
+        elif mutate_rate > 0.75:
+            mutate_rate = 0.75
+        
+        self.mutation_rate = mutate_rate
 
     def evaluate_population(self, population: List[Solution]) -> tuple:
         best_solution, best_path_length = sorted(
@@ -268,7 +274,9 @@ class GeneticAlgorithm(Model):
             self.best_path_length = best_path_length
 
         self.diversity_rate = diversity_rate
-        self.set_variable_mutate_rate()
+
+        if self.has_variable_mutate_rate:
+            self.set_variable_mutate_rate()
 
         return best_solution, best_path_length, diversity_rate
 
@@ -291,7 +299,7 @@ class GeneticAlgorithm(Model):
             _, best_path_length, diversity_rate = self.evaluate_population(population)
 
             if self.is_debugging:
-                logger.info(i, best_path_length, diversity_rate)
+                logger.info("Generation %d: Best path length = %d, Diversity rate = %.2f", i, best_path_length, diversity_rate)
                 
             selected_population = self.roulette_selection(population)
             population = self.generate_offspring_population(selected_population)

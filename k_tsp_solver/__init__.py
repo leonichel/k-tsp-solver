@@ -15,7 +15,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-from .utils import timeit, dataclass_to_dict, read_experiments
+from .utils import timeit, dataclass_to_dict, read_experiments, export_results_by_instance
 from .instance import Instance
 from .model import Model
 from .enums import ModelName, KFactor
@@ -30,6 +30,7 @@ __all__ = [
     "timeit",
     "dataclass_to_dict",
     "read_experiments",
+    "export_results_by_instance",
     "Instance", 
     "Model",
     "ModelName",
