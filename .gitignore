@@ -181,3 +181,4 @@ dist/
 *.egg-info/
 *.egg
 k_tsp_solver/__pycache__
+.vscode

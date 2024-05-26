@@ -1,5 +1,5 @@
 # %%
-from k_tsp_solver import Experiment, ModelName, KFactor, SELECTED_INSTANCES, export_results_by_instance
+from k_tsp_solver import Experiment, ModelName, KFactor, export_results_by_instance, SELECTED_INSTANCES
 # %%
 genetic_algorithm_parameters = {
     "population_size": 100,
@@ -29,3 +29,4 @@ for instance in SELECTED_INSTANCES:
                 experiment.run()
 # %%
 export_results_by_instance()
+# %%
