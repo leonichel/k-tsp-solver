@@ -18,7 +18,7 @@ random.seed(0)
 
 @dataclass
 class GeneticAlgorithm(Model):
-    name: str = ModelName.GENETIC_ALGORITHM
+    name: str = str(ModelName.GENETIC_ALGORITHM.value) 
     population_size: int = 100
     generations: int = 100
     mutation_rate: float = 0.05
@@ -36,8 +36,8 @@ class GeneticAlgorithm(Model):
 
         return last_vertex, first_vertex, instance.graph[last_vertex][first_vertex]
 
-    def generate_random_solution(self, instance: Instance, k_factor: KFactor, has_closed_cycle: bool) -> list:
-        path_edges = []
+    def generate_random_solution(self, instance: Instance, k_factor: KFactor, has_closed_cycle: bool) -> Solution:
+        path_edges: list = []
         visited = set()
         last_vertex = None
 

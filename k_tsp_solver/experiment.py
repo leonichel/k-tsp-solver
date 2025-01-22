@@ -74,7 +74,7 @@ class Experiment():
         initial_population: List[Solution] = []
         sessions: List[dict] = []
 
-        if self.model_name == ModelName.ENSEMBLE:
+        if self.model_name == ModelName.GENETIC_ALGORITHM_NEAREST_NEIGHBORS_ENSEMBLE.value:
             initial_population_model = NearestNeighbors()
             initial_population = initial_population_model.generate_multiple_solutions(
                 instance=instance, 
@@ -87,10 +87,10 @@ class Experiment():
                 **self.model_parameters
             )
         
-        elif self.model_name == ModelName.GENETIC_ALGORITHM:
+        elif self.model_name == ModelName.GENETIC_ALGORITHM.value:
             model = GeneticAlgorithm(**self.model_parameters)
 
-        elif self.model_name == ModelName.NEAREST_NEIGHBORS:
+        elif self.model_name == ModelName.NEAREST_NEIGHBORS.value:
             model = NearestNeighbors(**self.model_parameters)
 
         else:

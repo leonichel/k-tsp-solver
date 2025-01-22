@@ -16,7 +16,7 @@ from k_tsp_solver import (
     unsafe_hash=True
 )
 class NearestNeighbors(Model):
-    name: str = ModelName.NEAREST_NEIGHBORS
+    name: str = str(ModelName.NEAREST_NEIGHBORS.value)
 
     @lru_cache
     def sort_edges_by_weight(self, instance: Instance) -> list:        
