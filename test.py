@@ -47,3 +47,57 @@ probabilities = _calculate_probabilities(instance, current, visited, pheromone)
 # select next node
 np.random.choice(instance.number_of_vertices, p=probabilities)
 # %%
+from k_tsp_solver import Instance, Experiment, ModelName, KFactor, export_results_by_instance, SELECTED_INSTANCES
+import numpy as np
+import random
+from k_tsp_solver.ant_colony_optimization import AntColonyOptimization
+
+random.seed(0)
+# %%
+instance = Instance(name="att48.tsp")
+instance.get_instance()
+# %%
+aco = AntColonyOptimization(
+    evaporation_rate=0.1,
+    alpha=0.7,
+    beta=0.3,
+    initial_pheromone=1.0,
+    best_solution=None,
+    best_path_length=None,
+    is_debugging=False
+)
+# %%
+pheromone = np.full((instance.number_of_edges, instance.number_of_edges), aco.initial_pheromone)
+# %%
+path = []
+visited = set()
+first_edge = random.randint(1, instance.number_of_vertices)
+visited.add(first_edge)
+current = first_edge
+path.append(current)
+
+# %%
+probabilities = aco._calculate_probabilities(instance, current, visited, pheromone)
+
+#%%
+for _ in range(1, instance.number_of_vertices):
+    next_node = aco._select_next_node(instance, current, visited, pheromone)
+    visited.add(next_node)
+    path.append(next_node)
+    current = next_node
+
+#%% 
+path.append(0)
+solution = Solution(instance=instance, path_vertices=path, k_factor=k_factor, has_closed_cycle=has_closed_cycle)
+solution.get_path_edges()
+solution.evaluate_edge_path_length()
+path_length = solution.path_length
+
+if self.best_solution is None or solution.path_length < self.best_path_length:
+    self.best_solution = solution
+    self.best_path_length = solution.path_length
+
+#%%
+first_edge
+# %%
+aco._generate_solution(instance, pheromone, KFactor.SMALL.value, False)

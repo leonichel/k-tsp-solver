@@ -41,19 +41,27 @@ class AntColonyOptimization(Model):
                 pheromone[next_node, current] += 1 / solution.path_length
         return pheromone
     
-    def _calculate_probability(self, instance: Instance, current: int, next_node: int, pheromone: np.ndarray) -> float:
-        pheromone_factor = pheromone[current, next_node] ** self.alpha
-        distance_factor = 1 / instance.get_distance(current, next_node) ** self.beta
-        return pheromone_factor * distance_factor
-    
     def _calculate_probabilities(self, instance: Instance, current: int, visited: np.ndarray, pheromone: np.ndarray) -> np.ndarray:
-        unvisited = np.where(visited == False)[0]
-        probabilities = np.zeros(instance.number_of_vertices)
-        for node in unvisited:
-            probabilities[node] = self._calculate_probability(instance, current, node, pheromone)
-        return probabilities / np.sum(probabilities)
+        unvisited = np.where(~visited)[0]  # Use boolean negation
+        numerators = np.zeros(instance.number_of_vertices)
+        
+        for j in unvisited:
+            # Get distance between current node (0-based) and j (0-based)
+            distance = instance.get_distance(current + 1, j + 1)  # Adjust if nodes are 1-based
+            eta = 1.0 / distance if distance != 0 else 1e-10
+            tau = pheromone[current, j]
+            numerators[j] = (tau ** self.alpha) * (eta ** self.beta)
+        
+        total = np.sum(numerators)
+        if total == 0:
+            # Handle case where all probabilities are zero (unlikely but possible)
+            probabilities = np.ones_like(numerators) / len(unvisited)
+        else:
+            probabilities = numerators / total
+        
+        return probabilities
     
-    def _select_next_node(self, instance: Instance, current: int, visited: np.ndarray, pheromone: np.ndarray) -> int:
+    def _select_next_node(self, instance: Instance, current: int, visited: set, pheromone: np.ndarray) -> int:
         probabilities = self._calculate_probabilities(instance, current, visited, pheromone)
         return np.random.choice(instance.number_of_vertices, p=probabilities)
     
@@ -65,19 +73,19 @@ class AntColonyOptimization(Model):
             has_closed_cycle: bool
         ) -> Solution:
         path = []
-        visited = np.zeros(instance.number_of_vertices, dtype=bool)
-        first_edge = random.randint(0, instance.number_of_vertices - 1)
-        visited[first_edge] = True
-        current = first_edge
-        path.append(current)
+        visited = np.zeros(instance.number_of_vertices, dtype=bool)  # Boolean array
+        first_node = random.randint(0, instance.number_of_vertices - 1)  # 0-based index
+        visited[first_node] = True
+        current = first_node
+        path.append(first_node + 1)  # Assuming 1-based node representation for the path
 
         for _ in range(1, instance.number_of_vertices):
             next_node = self._select_next_node(instance, current, visited, pheromone)
-            visited.add(next_node)
-            path.append(next_node)
+            visited[next_node] = True  # Update boolean array
+            path.append(next_node + 1)  # Convert to 1-based
             current = next_node
-        
-        path.append(0)
+
+        path.append(0)  # Assuming 0 is the depot (adjust if needed)
         solution = Solution(instance=instance, path_vertices=path, k_factor=k_factor, has_closed_cycle=has_closed_cycle)
         solution.get_path_edges()
         solution.evaluate_edge_path_length()
@@ -115,7 +123,7 @@ class AntColonyOptimization(Model):
     def generate_solution(self, instance: Instance, k_factor: KFactor, has_closed_cycle: bool):
         self.best_solution: Solution = None
         self.best_path_length: int = None
-        pheromone = np.full((instance.number_of_edges, instance.number_of_edges), self.initial_pheromone)
+        pheromone = np.full((instance.number_of_vertices, instance.number_of_vertices), self.initial_pheromone)
 
         for _ in range(self.iterations):
             solutions = self._generate_solutions(instance, pheromone, k_factor, has_closed_cycle)
