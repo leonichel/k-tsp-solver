@@ -32,7 +32,7 @@ class Experiment():
     model_parameters: dict = field(default=None, repr=False)
     sessions: List[ExperimentSession] = None
 
-    DELTA_PATH = "experiments/"
+    DELTA_PATH = "../experiments_2/"
 
     def __post_init__(self):
         self.model_parameters_string = str(self.model_parameters)

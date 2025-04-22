@@ -17,7 +17,7 @@ class Instance:
 
     @timeit
     def get_instance(self):
-        instance = tsplib95.load(f"data/{self.name}")
+        instance = tsplib95.load(f"../data/{self.name}")
         instance_graph = instance.get_graph()
         number_of_vertices = instance_graph.number_of_nodes()
         number_of_edges = instance_graph.number_of_edges()
