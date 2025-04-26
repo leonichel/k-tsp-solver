@@ -23,6 +23,7 @@ class GeneticAlgorithm(Model):
     generations: int = 100
     mutation_rate: float = 0.05
     selection_size: int = 10
+    mutation_operator_probabilities: List[float] = field(default_factory=lambda: [0.25, 0.25, 0.25, 0.25])
     diversity_rate: float = field(default=None, repr=False)
     best_solution: Solution = field(default=None, repr=False)
     best_path_length: int = field(default=None, repr=False)
@@ -172,12 +173,16 @@ class GeneticAlgorithm(Model):
 
             return solution
         
-        mutate_function = random.choice([
-            swap_mutation, 
-            reverse_swap_mutation, 
-            slide_mutation, 
-            replacement_mutation
-        ])
+        mutate_function = random.choices(
+            population=[
+                swap_mutation, 
+                reverse_swap_mutation, 
+                slide_mutation, 
+                replacement_mutation
+            ],
+            weights=self.mutation_operator_probabilities,
+            k=1
+        )[0]
 
         mutated_solution = mutate_function(solution)
 
