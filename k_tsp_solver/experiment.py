@@ -12,7 +12,8 @@ from k_tsp_solver import (
     Solution, 
     ModelName, 
     KFactor, 
-    dataclass_to_dict
+    dataclass_to_dict,
+    logger
 )
 
 
@@ -96,6 +97,7 @@ class Experiment():
         else:
             raise ValueError(f"Unknown model: {self.model_name}")
 
+        logger.info(f"Running experiment for instance {self.instance_name} with model {self.model_name} k-factor {self.k_factor} (closed cycle: {self.has_closed_cycle})")
         for _ in range(self.repetitions):
             solution = model.generate_solution(
                 instance=instance,
