@@ -4,9 +4,10 @@ from k_tsp_solver import Experiment, ModelName, KFactor, export_results_by_insta
 genetic_algorithm_parameters = {
     "population_size": 100,
     "generations": 100,
-    "mutation_rate": 0.1,
+    "mutation_rate": 0.01,
     "selection_size": 10,
-    "has_variable_mutate_rate": True
+    "has_variable_mutate_rate": False,
+    "mutation_operator_probabilities": [1/3, 1/3, 1/3, 0.0],
 }
 nearest_neighbors_parameters = {}
 # %%

@@ -24,6 +24,7 @@ class ExperimentSession():
     
 @dataclass
 class Experiment():
+    experiment_name: str
     experiment_id: str = field(default_factory=lambda: str(uuid.uuid1()), init=False)
     instance_name: str
     k_factor: KFactor
@@ -32,11 +33,11 @@ class Experiment():
     has_closed_cycle: bool = False
     model_parameters: dict = field(default=None, repr=False)
     sessions: List[ExperimentSession] = None
-
-    DELTA_PATH = "../experiments_2/"
+    delta_path: str = field(default="")
 
     def __post_init__(self):
         self.model_parameters_string = str(self.model_parameters)
+        self.delta_path = f"../results/{self.experiment_name}/"
 
     def _get_instance(self) -> Instance:
         instance = Instance(
@@ -59,7 +60,7 @@ class Experiment():
     
     def _load_experiment(self) -> None:
         write_deltalake(
-            table_or_uri=self.DELTA_PATH, 
+            table_or_uri=self.delta_path, 
             data=self._get_experiment_as_dataframe(), 
             mode="append",
             partition_by=[
