@@ -37,7 +37,7 @@ class Experiment():
 
     def __post_init__(self):
         self.model_parameters_string = str(self.model_parameters)
-        self.delta_path = f"../results/{self.experiment_name}/"
+        self.delta_path = f"../results/{self.experiment_name}/{self.experiment_id}"
 
     def _get_instance(self) -> Instance:
         instance = Instance(
@@ -63,12 +63,12 @@ class Experiment():
             table_or_uri=self.delta_path, 
             data=self._get_experiment_as_dataframe(), 
             mode="append",
-            partition_by=[
-                "instance_name", 
-                "k_factor",
-                "has_closed_cycle",
-                "model_name"
-            ]
+            # partition_by=[
+            #     "instance_name", 
+            #     "k_factor",
+            #     "has_closed_cycle",
+            #     "model_name"
+            # ]
         )
 
     def run(self):
