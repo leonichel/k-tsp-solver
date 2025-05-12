@@ -59,7 +59,9 @@ class Solution():
 
     def get_solution_as_dict(self) -> dict:   
         solution = dataclass_to_dict(self)
-        solution["instance"] = dataclass_to_dict(solution["instance"])
-        solution["model"] = str(dataclass_to_dict(solution["model"]))
+        # solution["instance"] = dataclass_to_dict(solution["instance"])
+        # solution["model"] = dataclass_to_dict(solution["model"])
+        solution["instance"] = dataclass_to_dict(self.instance)
+        solution["model"] = dataclass_to_dict(self.model)
 
         return solution

@@ -1,4 +1,5 @@
 import uuid
+import random
 from typing import List
 from dataclasses import dataclass, field
 
@@ -47,16 +48,35 @@ class Experiment():
 
         return instance
 
+    # def _get_experiment_as_dataframe(self) -> pd.DataFrame:
+    #     return (
+    #         pd.json_normalize(
+    #             data=dataclass_to_dict(self), 
+    #             record_path=["sessions"], 
+    #             meta=["experiment_id", "model_name"],
+    #             sep="_"
+    #         )
+    #         .rename(columns=lambda x: x.split('results_')[-1])
+    #     )
+
     def _get_experiment_as_dataframe(self) -> pd.DataFrame:
-        return (
-            pd.json_normalize(
-                data=dataclass_to_dict(self), 
-                record_path=["sessions"], 
-                meta=["experiment_id", "model_name"],
-                sep="_"
-            )
-            .rename(columns=lambda x: x.split('results_')[-1])
-        )
+        rows = []
+        for session in self.sessions:
+            flat = {
+                "experiment_id": self.experiment_id,
+                "experiment_name": self.experiment_name,
+                "instance_name": self.instance_name,
+                "k_factor": self.k_factor,
+                "repetitions": self.repetitions,
+                "model_name": self.model_name,
+                "has_closed_cycle": self.has_closed_cycle,
+                "session_id": session["session_id"],
+                **session["results"],
+            }
+            rows.append(flat)
+
+        return pd.DataFrame(rows)
+
     
     def _load_experiment(self) -> None:
         write_deltalake(
@@ -77,14 +97,16 @@ class Experiment():
         sessions: List[dict] = []
 
         if self.model_name == ModelName.GENETIC_ALGORITHM_NEAREST_NEIGHBORS_ENSEMBLE.value:
-            initial_population_model = NearestNeighbors()
+            initial_population_model = NearestNeighbors(name=self.model_name)
             initial_population = initial_population_model.generate_multiple_solutions(
                 instance=instance, 
                 k_factor=self.k_factor,
                 has_closed_cycle=self.has_closed_cycle,
                 n_solutions=self.model_parameters["population_size"]
             )
+            print(f"Initial population: {initial_population}")
             model = GeneticAlgorithm(
+                name=self.model_name,
                 initial_population=initial_population, 
                 **self.model_parameters
             )
@@ -99,7 +121,8 @@ class Experiment():
             raise ValueError(f"Unknown model: {self.model_name}")
 
         logger.info(f"Running experiment for instance {self.instance_name} with model {self.model_name} k-factor {self.k_factor} (closed cycle: {self.has_closed_cycle})")
-        for _ in range(self.repetitions):
+        for i, _ in enumerate(range(self.repetitions)):
+            random.seed(i)
             solution = model.generate_solution(
                 instance=instance,
                 k_factor=self.k_factor,

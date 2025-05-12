@@ -9,12 +9,13 @@ genetic_algorithm_parameters = {
     "selection_size": 10,
     "has_variable_mutate_rate": False,
     "mutation_operator_probabilities": [1/3, 1/3, 1/3, 0.0],
+    "use_crossover": False
 }
 nearest_neighbors_parameters: dict = {}
 params_dict = lambda model: (
-    genetic_algorithm_parameters 
-    if model != ModelName.NEAREST_NEIGHBORS 
-    else nearest_neighbors_parameters
+    nearest_neighbors_parameters 
+    if model == ModelName.NEAREST_NEIGHBORS 
+    else genetic_algorithm_parameters
 )
 # %%
 def run_single_experiment(args):

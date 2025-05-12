@@ -13,17 +13,16 @@ from k_tsp_solver import (
     logger
 )
 
-random.seed(0)
-
 
 @dataclass
 class GeneticAlgorithm(Model):
     name: str = str(ModelName.GENETIC_ALGORITHM.value) 
     population_size: int = 100
     generations: int = 100
-    mutation_rate: float = 0.05
+    mutation_rate: float = 0.01
     selection_size: int = 10
     mutation_operator_probabilities: List[float] = field(default_factory=lambda: [0.25, 0.25, 0.25, 0.25])
+    use_crossover: bool = True
     diversity_rate: float = field(default=None, repr=False)
     best_solution: Solution = field(default=None, repr=False)
     best_path_length: int = field(default=None, repr=False)
@@ -215,7 +214,7 @@ class GeneticAlgorithm(Model):
 
         solution = Solution(
             instance=solution_1.instance,
-            model=solution_1.model,
+            model=self,
             k_factor=solution_1.k_factor,
             has_closed_cycle=solution_1.has_closed_cycle,
             path_vertices=offspring
@@ -232,25 +231,60 @@ class GeneticAlgorithm(Model):
 
         return solution
     
+    # def generate_offspring_population(self, population: List[Solution]) -> List[Solution]:
+    #     next_generation: List[Solution] = []
+    #     number_of_offsprings = self.population_size - len(population)
+
+    #     for _ in range(number_of_offsprings):
+    #         solution_1 = random.choice(population)
+    #         solution_2 = random.choice(population)
+    #         offspring = self.ordered_crossover(solution_1, solution_2)
+    #         next_generation.append(offspring)
+
+    #     offspring_population = population + next_generation
+        
+    #     return offspring_population
+
     def generate_offspring_population(self, population: List[Solution]) -> List[Solution]:
         next_generation: List[Solution] = []
         number_of_offsprings = self.population_size - len(population)
 
         for _ in range(number_of_offsprings):
-            solution_1 = random.choice(population)
-            solution_2 = random.choice(population)
-            offspring = self.ordered_crossover(solution_1, solution_2)
+            if self.use_crossover:
+                # use crossover + optional mutation inside ordered_crossover
+                parent1 = random.choice(population)
+                parent2 = random.choice(population)
+                offspring = self.ordered_crossover(parent1, parent2)
+            else:
+                # mutation-only offspring
+                parent = random.choice(population)
+                # copy parent's vertex sequence (exclude closing vertex if present)
+                verts = parent.path_vertices[:-1] if parent.has_closed_cycle else list(parent.path_vertices)
+                offspring = Solution(
+                    instance=parent.instance,
+                    model=self,
+                    k_factor=parent.k_factor,
+                    has_closed_cycle=parent.has_closed_cycle,
+                    path_vertices=list(verts)
+                )
+                # apply mutation
+                offspring = self.mutate(offspring)
+                # re-close cycle if needed
+                if offspring.has_closed_cycle:
+                    offspring.path_vertices.append(offspring.path_vertices[0])
+                offspring.get_path_edges()
+                offspring.evaluate_edge_path_length()
+
             next_generation.append(offspring)
 
-        offspring_population = population + next_generation
-        
-        return offspring_population
+        # combine survivors (population) with new offspring
+        return population + next_generation
     
     def set_variable_mutate_rate(self) -> None:
         mutate_rate = 1 - self.diversity_rate
 
-        if mutate_rate < 0.05:
-            mutate_rate = 0.05
+        if mutate_rate < 0.01:
+            mutate_rate = 0.01
         elif mutate_rate > 0.75:
             mutate_rate = 0.75
         
