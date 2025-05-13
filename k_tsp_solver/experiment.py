@@ -104,7 +104,6 @@ class Experiment():
                 has_closed_cycle=self.has_closed_cycle,
                 n_solutions=self.model_parameters["population_size"]
             )
-            print(f"Initial population: {initial_population}")
             model = GeneticAlgorithm(
                 name=self.model_name,
                 initial_population=initial_population, 
