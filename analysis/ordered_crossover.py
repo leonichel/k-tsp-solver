@@ -8,8 +8,8 @@ genetic_algorithm_parameters = {
     "mutation_rate": 0.01,
     "selection_size": 10,
     "has_variable_mutate_rate": False,
-    "mutation_operator_probabilities": [1/4, 1/4, 1/4, 1/4],
-    "use_crossover": False
+    "mutation_operator_probabilities": [1/3, 1/3, 1/3, 0],
+    "use_crossover": True
 }
 nearest_neighbors_parameters: dict = {}
 params_dict = lambda model: (
@@ -21,7 +21,7 @@ params_dict = lambda model: (
 def run_single_experiment(args):
     instance, model, has_closed, k, params_dict = args
     experiment = Experiment(
-        experiment_name="replacement_operator",
+        experiment_name="ordered_crossover",
         instance_name=instance,
         model_name=model.value,
         model_parameters=params_dict,
