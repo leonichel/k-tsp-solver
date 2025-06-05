@@ -7,7 +7,3 @@ from k_tsp_solver import Instance
 @dataclass
 class Model(ABC):
     name: str
-
-    @abstractmethod
-    def generate_solution(self, instance: Instance):
-        pass 
