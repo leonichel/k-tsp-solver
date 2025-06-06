@@ -29,7 +29,7 @@ def run_single_experiment(args):
 # %%
 experiment_args = [
     (instance, has_closed, k)
-    for instance in SELECTED_INSTANCES[4:6]
+    for instance in SELECTED_INSTANCES
     for k in KFactor
     for has_closed in [False, True]
 ]
