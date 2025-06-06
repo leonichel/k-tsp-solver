@@ -8,6 +8,7 @@ import pandas as pd
 
 from k_tsp_solver import (
     Instance, 
+    Model,
     NearestNeighbors, 
     NearestNeighborsV2,
     GeneticAlgorithm, 
@@ -83,7 +84,7 @@ class Experiment():
 
         return pd.DataFrame(rows)
 
-    def _load_precomputed_nn_solutions_from_delta(self) -> List[Solution]:
+    def _load_precomputed_nn_solutions_from_delta(self, solutions_number: int) -> List[Solution]:
         dt = DeltaTable(self.nearest_neighbors_precomputed_solutions_delta_path)
         pa_table = dt.to_pyarrow_table()
         df: pd.DataFrame = pa_table.to_pandas()
@@ -109,12 +110,13 @@ class Experiment():
         for (inst_name, kf_name, closed_flag), group_df in df_filtered.groupby(group_cols):
             instance = Instance(name=inst_name)
             instance.get_instance()
-            model = NearestNeighborsV2()
+            model = NearestNeighborsV2(name=self.model_name)
             kf_enum = KFactor[kf_name] 
 
             for _, row in group_df.iterrows():
                 vertices = list(row["path_vertices"])
-                length = int(row["path_length"])     
+                vertices = [int(v) for v in vertices]
+                length = int(row["path_length"])
 
                 sol = Solution(
                     instance=instance,
@@ -125,6 +127,12 @@ class Experiment():
                     path_length=length
                 )
                 solutions.append(sol)
+        
+        # if # of solutions <= solutions_number duplicate to fill the gap if not, cut to the number
+        if len(solutions) < solutions_number:
+            solutions = solutions * (solutions_number // len(solutions)) + solutions[:solutions_number % len(solutions)]
+        elif len(solutions) > solutions_number:
+            solutions = solutions[:solutions_number]
 
         return solutions
     
@@ -147,13 +155,7 @@ class Experiment():
         sessions: List[dict] = []
 
         if self.model_name == ModelName.GENETIC_ALGORITHM_NEAREST_NEIGHBORS_ENSEMBLE.value:
-            initial_population_model = NearestNeighbors(name=self.model_name)
-            initial_population = initial_population_model.generate_multiple_solutions(
-                instance=instance, 
-                k_factor=self.k_factor,
-                has_closed_cycle=self.has_closed_cycle,
-                n_solutions=self.model_parameters["population_size"]
-            )
+            initial_population = self._load_precomputed_nn_solutions_from_delta(solutions_number=self.model_parameters["population_size"])
             model = GeneticAlgorithm(
                 name=self.model_name,
                 initial_population=initial_population, 

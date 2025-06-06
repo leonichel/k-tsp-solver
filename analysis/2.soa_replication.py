@@ -11,30 +11,25 @@ genetic_algorithm_parameters = {
     "mutation_operator_probabilities": [1/3, 1/3, 1/3, 0.0],
     "use_crossover": False
 }
-nearest_neighbors_parameters: dict = {}
-params_dict = lambda model: (
-    nearest_neighbors_parameters 
-    if model == ModelName.NEAREST_NEIGHBORS 
-    else genetic_algorithm_parameters
-)
+model = ModelName.GENETIC_ALGORITHM_NEAREST_NEIGHBORS_ENSEMBLE.value
 # %%
 def run_single_experiment(args):
-    instance, model, has_closed, k, params_dict = args
+    instance, has_closed, k = args
     experiment = Experiment(
         experiment_name="soa_replication",
         instance_name=instance,
-        model_name=model.value,
-        model_parameters=params_dict,
+        model_name=model,
+        model_parameters=genetic_algorithm_parameters,
         k_factor=k,
         has_closed_cycle=has_closed,
-        repetitions=10
+        repetitions=10,
+        isolate_delta=True
     )
     experiment.run()
 # %%
 experiment_args = [
-    (instance, model, has_closed, k, params_dict(model))
-    for instance in SELECTED_INSTANCES
-    for model in ModelName
+    (instance, has_closed, k)
+    for instance in SELECTED_INSTANCES[4:6]
     for k in KFactor
     for has_closed in [False, True]
 ]
