@@ -42,9 +42,9 @@ parameters = {
     "replace_operator": replace_operator_parameters,
     "variable_mutate_rate": variable_mutate_rate_parameters,
     "ordered_crossover": ordered_crossover_parameters,
-    "replacement_operator__ordered_crossover": replacement_operator__ordered_crossover_parameters,
+    "replace_operator__ordered_crossover": replacement_operator__ordered_crossover_parameters,
     "variable_mutate_rate__ordered_crossover": variable_mutate_rate__ordered_crossover_parameters,
-    "variable_mutate_rate__replacement_operator": variable_mutate_rate__replacement_operator_parameters,
+    "variable_mutate_rate__replace_operator": variable_mutate_rate__replacement_operator_parameters,
     "all_changes": all_changes_parameters
 }
 model = ModelName.GENETIC_ALGORITHM_NEAREST_NEIGHBORS_ENSEMBLE.value
