@@ -39,6 +39,7 @@ all_changes_parameters["use_crossover"] = True
 all_changes_parameters["mutation_operator_probabilities"] = [1/4, 1/4, 1/4, 1/4]
 
 parameters = {
+    "soa_replication": genetic_algorithm_parameters,
     "replace_operator": replace_operator_parameters,
     "variable_mutate_rate": variable_mutate_rate_parameters,
     "ordered_crossover": ordered_crossover_parameters,

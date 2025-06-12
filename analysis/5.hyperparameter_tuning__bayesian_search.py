@@ -22,7 +22,7 @@ MODEL = ModelName.GENETIC_ALGORITHM_NEAREST_NEIGHBORS_ENSEMBLE.value
 def run_single_experiment(args):
     instance, has_closed, k, params_dict = args
     experiment = Experiment(
-        experiment_name="hyperparameter_tuning__random_search",
+        experiment_name="hyperparameter_tuning__bayesian_search",
         instance_name=instance,
         model_name=MODEL,
         model_parameters=params_dict,
