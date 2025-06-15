@@ -6,7 +6,6 @@ import pandas as pd
 import optuna
 
 from k_tsp_solver import Experiment, ModelName, KFactor
-
 # %%
 SMALL_TSP_INSTANCES = ["gr24.tsp", "berlin52.tsp", "pr76.tsp"]
 MEDIUM_TSP_INSTANCES = ["ch130.tsp", "pr152.tsp", "kroA200.tsp"]
@@ -83,4 +82,43 @@ print(study.best_value)
 # %%
 df = study.trials_dataframe()
 df.to_csv("hyperparameter_tuning__random_search__results.csv", index=False)
+# %%
+####### Run Baseline
+def run_single_experiment(args):
+    instance, has_closed, k, params_dict = args
+    experiment = Experiment(
+        experiment_name="hyperparameter_tuning__baseline",
+        instance_name=instance,
+        model_name=MODEL,
+        model_parameters=params_dict,
+        k_factor=k,
+        has_closed_cycle=has_closed,
+        repetitions=1,
+        isolate_delta=True,
+    )
+    experiment.run()
+    return experiment._get_experiment_as_dataframe()["path_length"].min()
+
+params_dict = {
+    "population_size": 100,
+    "generations": 100,
+    "mutation_rate": 0.01,
+    "selection_size": 10,
+    "has_variable_mutate_rate": False,
+    "mutation_operator_probabilities": [1/3, 1/3, 1/3, 0.0],
+    "use_crossover": False
+}
+
+experiment_args = [
+    (instance, has_closed, k, params_dict)
+    for instance in SELECTED_INSTANCES
+    for k in KFactor
+    for has_closed in [False, True]
+]
+
+results = Parallel(n_jobs=-1, backend="loky", verbose=0)(
+    delayed(run_single_experiment)(args) for args in experiment_args
+)
+# %%
+float(np.mean(results)) # => 11186.958333333334
 # %%
